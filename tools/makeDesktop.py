@@ -26,10 +26,10 @@ def main():
 
     with open(args.o, 'wb') as out:
         bgr_array = cv2.imread(args.img)
-        n = 200
-        bgr = bgr_array[n][n]
-        print('[{0},{0}]: b = {1}, g = {2}, r = {3}'.format(n, bgr[0], bgr[1], bgr[2]))
-        return
+        #n = 200
+        #bgr = bgr_array[n][n]
+        #print('[{0},{0}]: b = {1}, g = {2}, r = {3}'.format(n, bgr[0], bgr[1], bgr[2]))
+        #return
         out.write(compile(bgr_array))
 
 if __name__ == '__main__':

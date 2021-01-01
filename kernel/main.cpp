@@ -18,7 +18,7 @@ void operator delete(void *obj) noexcept {
   // do nothing
 }
 
-const PixelColor kDesktopBGColor{45, 118, 237};
+const PixelColor kDesktopBGColor{20, 20, 20};
 const PixelColor kDesktopFGColor{255, 255, 255};
 
 const int kMouseCursorWidth = 15;
@@ -89,10 +89,17 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
   const int kFrameHeight = frame_buffer_config.vertical_resolution;
 
   // Blue back ground
-  FillRectangle(*pixel_writer,
-                {0, 0},
-                {kFrameWidth, kFrameHeight - 50},
-                kDesktopBGColor);
+  //FillRectangle(*pixel_writer,
+  //              {0, 0},
+  //              {kFrameWidth, kFrameHeight - 50},
+  //              kDesktopBGColor);
+
+  // Back ground
+  wallpaper = new(wallpaper_buf) WallPaper(
+    *pixel_writer, kFrameWidth, kFrameHeight - 50
+  );
+  wallpaper->WriteWallPaper();
+
   // Dark foot ground
   FillRectangle(*pixel_writer,
                 {0, kFrameHeight - 50},
@@ -123,11 +130,6 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
       }
     }
   }
-
-  wallpaper = new(wallpaper_buf) WallPaper(
-    *pixel_writer, kFrameWidth, kFrameHeight
-  );
-  wallpaper->WriteWallPaper();
-
+  
   while (1) __asm__("hlt");
 }

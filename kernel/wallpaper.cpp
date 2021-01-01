@@ -18,15 +18,14 @@ WallPaper::WallPaper(PixelWriter& writer, const int kFrameWidth, const int kFram
   if (overhangWidth > 0) {
     // wallpaper is wider
     firstPixel_ += overhangWidth / 2;
-    //firstPixel_ += 200;
   }
   overhangHeight = wallpaperHeight_ - kFrameHeight_;
   if (overhangHeight > 0) {
     // wallpaper is higher
     firstPixel_ += (overhangHeight / 2) * wallpaperWidth_;
-    //firstPixel_ += 200 * wallpaperWidth_;
   }
 
+  // print debug
   char buf[1024];
   sprintf(buf, "kFrameWidth = %d, kFrameHeight = %d", kFrameWidth_, kFrameHeight_);
   WriteString(writer_, 100, 100, buf, {0, 0, 0});
