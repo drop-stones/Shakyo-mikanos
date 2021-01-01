@@ -7,6 +7,8 @@
 #include "font.hpp"
 #include "console.hpp"
 
+#include "wallpaper.hpp"
+
 // For placement new
 void* operator new(size_t size, void* buf) {
   return buf;
@@ -53,6 +55,9 @@ PixelWriter* pixel_writer;
 
 char console_buf[sizeof(Console)];
 Console* console;
+
+char wallpaper_buf[sizeof(WallPaper)];
+WallPaper* wallpaper;
 
 int printk(const char* format, ...) {
   va_list ap;
@@ -118,6 +123,11 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
       }
     }
   }
+
+  wallpaper = new(wallpaper_buf) WallPaper(
+    *pixel_writer, kFrameWidth, kFrameHeight
+  );
+  wallpaper->WriteWallPaper();
 
   while (1) __asm__("hlt");
 }

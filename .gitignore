@@ -1,3 +1,6 @@
 kernel/mnt
 kernel/disk.img
 kernel/kernel.elf
+kernel/*.o
+kernel/*.bin
+kernel/*.d
