@@ -13,6 +13,22 @@ namespace pci {
   // CONFIG_DATA register address
   const uint16_t kConfigData = 0xcfc;
 
+  // PCI device class code
+  struct ClassCode {
+    uint8_t base, sub, interface;
+
+    bool Match(uint8_t b) { return b == base; }
+    bool Match(uint8_t b, uint8_t s) { return Match(b) && s == sub; };
+    bool Match(uint8_t b, uint8_t s, uint8_t i) {
+      return Match(b, s) && i == interface;
+    }
+  };
+
+  struct Device {
+    uint8_t bus, device, function, header_type;
+    ClassCode class_code;
+  };
+
   // write to CONFIG_ADDRESS
   void WriteAddress(uint32_t address);
   // write to CONFIG_DATA
@@ -27,11 +43,16 @@ namespace pci {
   // read Header Type
   uint8_t  ReadHeaderType(uint8_t bus, uint8_t device, uint8_t function);
   // read Class code
-  //  - 31:24 : Base Class
-  //  - 23:16 : Sub Class
-  //  - 15:8  : Interface
-  //  - 0:7   : Revision ID
-  uint32_t ReadClassCode(uint8_t bus, uint8_t device, uint8_t function);
+  ClassCode ReadClassCode(uint8_t bus, uint8_t device, uint8_t function);
+
+  inline uint16_t ReadVendorId(const Device& dev) {
+      return ReadVendorId(dev.bus, dev.device, dev.function);
+  }
+
+  // read 32bit register
+  uint32_t ReadConfReg(const Device& dev, uint8_t reg_addr);
+  // write 32bit register
+  void WriteConfReg(const Device& dev, uint8_t reg_addr, uint32_t value);
 
   // read Bus Number
   //  - 23:16 : Sub ordinate bus number
@@ -41,14 +62,17 @@ namespace pci {
 
   bool IsSingleFunctionDevice(uint8_t header_type);
 
-  struct Device {
-    uint8_t bus, device, function, header_type;
-  };
-
   // inline: identical of all translation unit
   //   useful global variable definition in header file
   inline std::array<Device, 32> devices;
   inline int num_device;
 
   Error ScanAllBus();
+
+  // BAR: Base Address Register in MMIO(memory mapped io)
+  constexpr uint8_t CalcBarAddress(unsigned int bar_index) {
+    return 0x10 + 4 * bar_index;
+  }
+
+  WithError<uint64_t> ReadBar(Device& device, unsigned int bar_index);
 }
