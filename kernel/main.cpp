@@ -19,6 +19,7 @@
 #include "usb/xhci/trb.hpp"
 #include "interrupt.hpp"
 #include "asmfunc.h"
+#include "queue.hpp"
 
 #include "wallpaper.hpp"
 
@@ -27,9 +28,9 @@
 //  return buf;
 //}
 
-void operator delete(void *obj) noexcept {
-  // do nothing
-}
+//void operator delete(void *obj) noexcept {
+//  // do nothing
+//}
 
 const PixelColor kDesktopBGColor{20, 20, 20};
 const PixelColor kDesktopFGColor{255, 255, 255};
@@ -86,14 +87,17 @@ void SwitchEhci2Xhci(const pci::Device& xhc_dev) {
 
 usb::xhci::Controller* xhc;
 
+struct Message {
+  enum Type {
+    kInterruptXHCI,
+  } type;
+};
+
+ArrayQueue<Message>* main_queue;
+
 __attribute__((interrupt))  // interrupt handler
 void IntHandlerXHCI(InterruptFrame* frame) {
-  while(xhc->PrimaryEventRing()->HasFront()) {
-    if (auto err = ProcessEvent(*xhc)) {
-      Log(kError, "Error while ProcessEvent: %s at %s:%d\n",
-          err.Name(), err.File(), err.Line());
-    }
-  }
+  main_queue->Push(Message{Message::kInterruptXHCI});
   NotifyEndOfInterrupt();
 }
 
@@ -150,6 +154,10 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
   mouse_cursor = new(mouse_cursor_buf) MouseCursor(
     pixel_writer, kDesktopBGColor, {300, 200}
   );
+
+  std::array<Message, 32> main_queue_data;
+  ArrayQueue<Message> main_queue{main_queue_data};
+  ::main_queue = &main_queue;   // "::" means global variable
 
   auto err = pci::ScanAllBus();
   printk("ScanAllBus: %s\n", err.Name());
@@ -222,9 +230,6 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
   Log(kInfo, "xHC starting\n");
   xhc.Run();
 
-  ::xhc = &xhc;
-  __asm__("sti");
-
   usb::HIDMouseDriver::default_observer = MouseObserver;
 
   for (int i = 0; i <= xhc.MaxPorts(); i++) {
@@ -237,6 +242,33 @@ extern "C" void KernelMain(const struct FrameBufferConfig& frame_buffer_config) 
             err.Name(), err.File(), err.Line());
         continue;
       }
+    }
+  }
+
+  while (true) {
+    // clear interrupt flag (do not accept interrupt)
+    __asm__("cli");
+    if (main_queue.Count() == 0) {
+      // set interrupt flag (accept interrupt)
+      __asm__("sti\n\thlt");
+      continue;
+    }
+
+    Message msg = main_queue.Front();
+    main_queue.Pop();
+    __asm__("sti");
+
+    switch (msg.type) {
+      case Message::kInterruptXHCI:
+        while (xhc.PrimaryEventRing()->HasFront()) {
+          if (auto err = ProcessEvent(xhc)) {
+            Log(kError, "Error while ProcessEvnt: %s at %s:%d\n",
+                err.Name(), err.File(), err.Line());
+          }
+        }
+        break;
+      default:
+        Log(kError, "Unknown message type: %d\n", msg.type);
     }
   }
 
