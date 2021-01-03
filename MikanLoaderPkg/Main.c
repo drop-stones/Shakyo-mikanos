@@ -10,16 +10,8 @@
 #include  <Protocol/BlockIo.h>
 #include  <Guid/FileInfo.h>
 #include  "frame_buffer_config.hpp"
+#include  "memory_map.hpp"
 #include  "elf.hpp"
-
-struct MemoryMap {
-  UINTN buffer_size;
-  VOID* buffer;
-  UINTN map_size;
-  UINTN map_key;
-  UINTN descriptor_size;
-  UINT32 descriptor_version;
-};
 
 EFI_STATUS GetMemoryMap(struct MemoryMap* map) {
   if (map->buffer == NULL) {
@@ -310,22 +302,6 @@ EFI_STATUS EFIAPI UefiMain(
     Halt();
   }
 
-  //EFI_PHYSICAL_ADDRESS kernel_base_addr = 0x100000;
-  //status = gBS->AllocatePages(
-  //    AllocateAddress, EfiLoaderData,
-  //    (kernel_file_size + 0xfff) / 0x1000, &kernel_base_addr
-  //);
-  //if (EFI_ERROR(status)) {
-  //  Print(L"failed to allocate pages: %r\n", status);
-  //  Halt();
-  //}
-  //status = kernel_file->Read(kernel_file, &kernel_file_size, (VOID*)kernel_base_addr);
-  //if (EFI_ERROR(status)) {
-  //  Print(L"error: %r", status);
-  //  Halt();
-  //}
-  //Print(L"Kernel: 0x%0lx (%lu bytes)\n", kernel_base_addr, kernel_file_size);
-
   status = gBS->ExitBootServices(image_handle, memmap.map_key);
   if (EFI_ERROR(status)) {
     status = GetMemoryMap(&memmap);
@@ -340,7 +316,6 @@ EFI_STATUS EFIAPI UefiMain(
     }
   }
 
-  //UINT64 entry_addr = *(UINT64*)(kernel_base_addr + 24);
   UINT64 entry_addr = *(UINT64*)(kernel_first_addr + 24);
 
   struct FrameBufferConfig config = {
@@ -362,9 +337,10 @@ EFI_STATUS EFIAPI UefiMain(
       Halt();
   }
 
-  typedef void EntryPointType(const struct FrameBufferConfig*);
+  typedef void EntryPointType(const struct FrameBufferConfig*,
+                              const struct MemoryMap*);
   EntryPointType* entry_point = (EntryPointType*)entry_addr;
-  entry_point(&config);
+  entry_point(&config, &memmap);
 
   Print(L"All done\n");
 
