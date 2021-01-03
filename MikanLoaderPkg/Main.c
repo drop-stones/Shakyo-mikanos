@@ -150,6 +150,7 @@ const CHAR16* GetPixelFormatUnicode(EFI_GRAPHICS_PIXEL_FORMAT fmt) {
 }
 
 void Halt(void) {
+  Print(L"Halt()\n");
   while (1) __asm__("hlt");
 }
 
@@ -186,7 +187,7 @@ EFI_STATUS EFIAPI UefiMain(
   Print(L"Hello, Shakyo-Mikan World!\n");
 
   // MemoryMap
-  CHAR8 memmap_buf[4096 * 4];
+  CHAR8 memmap_buf[4096 * 8];
   struct MemoryMap memmap = {sizeof(memmap_buf), memmap_buf, 0, 0, 0, 0};
   status = GetMemoryMap(&memmap);
   if (EFI_ERROR(status)) {
@@ -241,6 +242,11 @@ EFI_STATUS EFIAPI UefiMain(
       gop->Mode->FrameBufferBase + gop->Mode->FrameBufferSize,
       gop->Mode->FrameBufferSize);
 
+  //UINT8* frame_buffer = (UINT8*)gop->Mode->FrameBufferBase;
+  //for (UINTN i = 0; i < gop->Mode->FrameBufferSize; i++) {
+  //  frame_buffer[i] = 0;
+  //}
+
   // Open kernel file
   EFI_FILE_PROTOCOL* kernel_file;
   status = root_dir->Open(
@@ -265,6 +271,7 @@ EFI_STATUS EFIAPI UefiMain(
 
   EFI_FILE_INFO* file_info = (EFI_FILE_INFO*)file_info_buffer;
   UINTN kernel_file_size = file_info->FileSize;
+  //Print(L"kernel_file_size: %llu\n", kernel_file_size);
 
   // Temporary kernel memory
   VOID* kernel_buffer;
@@ -301,18 +308,20 @@ EFI_STATUS EFIAPI UefiMain(
     Print(L"failed to free pool: %r\n", status);
     Halt();
   }
-
+  
   status = gBS->ExitBootServices(image_handle, memmap.map_key);
   if (EFI_ERROR(status)) {
+    //Print(L"failed to get memory map at first time: %r\n", status);
     status = GetMemoryMap(&memmap);
     if (EFI_ERROR(status)) {
       Print(L"failed to get memory map: %r\n", status);
-      while (1);
+      Halt();
     }
+    //Print(L"Start ExitBootServices\n");
     status = gBS->ExitBootServices(image_handle, memmap.map_key);
     if (EFI_ERROR(status)) {
       Print(L"Could not exit boot service: %r\n", status);
-      while (1);
+      Halt();
     }
   }
 
@@ -337,6 +346,7 @@ EFI_STATUS EFIAPI UefiMain(
       Halt();
   }
 
+  Print(L"Call Entry Point...\n");
   typedef void EntryPointType(const struct FrameBufferConfig*,
                               const struct MemoryMap*);
   EntryPointType* entry_point = (EntryPointType*)entry_addr;

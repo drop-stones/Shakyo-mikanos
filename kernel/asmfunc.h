@@ -17,4 +17,12 @@ extern "C" {
   uint16_t GetCS(void);
   // register user-defined IDT
   void LoadIDT(uint16_t limit, uint64_t offset);
+  // register user-defined GDT
+  void LoadGDT(uint16_t limit, uint64_t offset);
+  // setting ss(stack segment register) + cs(code segment register)
+  void SetCSSS(uint16_t cs, uint16_t ss);
+  // setting segment registers (ds, es, fs, gs)
+  void SetDSAll(uint16_t value);
+  // setting cr3 register
+  void SetCR3(uint64_t value);
 }

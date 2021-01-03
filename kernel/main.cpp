@@ -21,17 +21,10 @@
 #include "interrupt.hpp"
 #include "asmfunc.h"
 #include "queue.hpp"
+#include "segment.hpp"
+#include "paging.hpp"
 
-#include "wallpaper.hpp"
-
-// For placement new
-//void* operator new(size_t size, void* buf) {
-//  return buf;
-//}
-
-//void operator delete(void *obj) noexcept {
-//  // do nothing
-//}
+//#include "wallpaper.hpp"
 
 const PixelColor kDesktopBGColor{20, 20, 20};
 const PixelColor kDesktopFGColor{255, 255, 255};
@@ -42,8 +35,8 @@ PixelWriter* pixel_writer;
 char console_buf[sizeof(Console)];
 Console* console;
 
-char wallpaper_buf[sizeof(WallPaper)];
-WallPaper* wallpaper;
+//char wallpaper_buf[sizeof(WallPaper)];
+//WallPaper* wallpaper;
 
 int printk(const char* format, ...) {
   va_list ap;
@@ -102,8 +95,18 @@ void IntHandlerXHCI(InterruptFrame* frame) {
   NotifyEndOfInterrupt();
 }
 
-extern "C" void KernelMain(const FrameBufferConfig& frame_buffer_config,
-                           const MemoryMap& memory_map) {
+alignas(16) uint8_t kernel_main_stack[1024 * 1024];
+
+extern "C" void KernelMainNewStack(
+    const FrameBufferConfig& frame_buffer_config_ref,
+    const MemoryMap& memory_map_ref) {
+  // copy to new stack
+  FrameBufferConfig frame_buffer_config{frame_buffer_config_ref};
+  MemoryMap memory_map{memory_map_ref};
+//extern "C" void KernelMain(
+//    const FrameBufferConfig& frame_buffer_config,
+//    const MemoryMap& memory_map) {
+
   switch (frame_buffer_config.pixel_format) {
   case kPixelRGBResv8BitPerColor:
     // placement new
@@ -120,10 +123,14 @@ extern "C" void KernelMain(const FrameBufferConfig& frame_buffer_config,
   const int kFrameHeight = frame_buffer_config.vertical_resolution;
 
   // Back ground
-  wallpaper = new(wallpaper_buf) WallPaper(
-    *pixel_writer, kFrameWidth, kFrameHeight - 50
-  );
-  wallpaper->WriteWallPaper();
+  //wallpaper = new(wallpaper_buf) WallPaper(
+  //  *pixel_writer, kFrameWidth, kFrameHeight - 50
+  //);
+  //wallpaper->WriteWallPaper();
+  FillRectangle(*pixel_writer,
+              {0, 0},
+              {kFrameWidth, kFrameHeight - 50},
+              kDesktopBGColor);
   // Dark foot ground
   FillRectangle(*pixel_writer,
                 {0, kFrameHeight - 50},
@@ -143,32 +150,34 @@ extern "C" void KernelMain(const FrameBufferConfig& frame_buffer_config,
   console = new(console_buf) Console{
     *pixel_writer, kDesktopFGColor, kDesktopBGColor
   };
-  printk("Welcome to MikanOS!\n");
+  printk("Welcome to Shakyo-MikanOS!\n");
   SetLogLevel(kWarn);
 
-  const std::array available_memory_types {
-    MemoryType::kEfiBootServicesCode,
-    MemoryType::kEfiBootServicesData,
-    MemoryType::kEfiConventionalMemory,
-  };
+  SetupSegments();
+
+  const uint16_t kernel_cs = 1 << 3;
+  const uint16_t kernel_ss = 2 << 3;
+  SetDSAll(0);
+  SetCSSS(kernel_cs, kernel_ss);
+  
+  SetupIdentityPageTable();
 
   printk("memory_map: %p\n", &memory_map);
-  for (uintptr_t iter = reinterpret_cast<uintptr_t>(memory_map.buffer);
-       iter < reinterpret_cast<uintptr_t>(memory_map.buffer) + memory_map.map_size;
+  const auto memory_map_base = reinterpret_cast<uintptr_t>(memory_map.buffer);
+  for (uintptr_t iter = memory_map_base;
+       iter < memory_map_base + memory_map.map_size;
        iter += memory_map.descriptor_size) {
     auto desc = reinterpret_cast<MemoryDescriptor*>(iter);
-    for (int i = 0; i < available_memory_types.size(); ++i) {
-      if (desc->type == available_memory_types[i]) {
-        printk("type = %u, phys = %08lx - %08lx, pages = %lu, attr = %08lx\n",
-               desc->type,
-               desc->physical_start,
-               desc->physical_start + desc->number_of_pages * 4096 - 1,
-               desc->number_of_pages,
-               desc->attribute);
-      }
+    if (IsAvailable(static_cast<MemoryType>(desc->type))) {
+      printk("type = %u, phys = %08lx - %08lx, pages = %lu, attr = %08lx\n",
+             desc->type,
+             desc->physical_start,
+             desc->physical_start + desc->number_of_pages * 4096 - 1,
+             desc->number_of_pages,
+             desc->attribute);
     }
   }
-
+  
   mouse_cursor = new(mouse_cursor_buf) MouseCursor(
     pixel_writer, kDesktopBGColor, {300, 200}
   );
@@ -178,13 +187,13 @@ extern "C" void KernelMain(const FrameBufferConfig& frame_buffer_config,
   ::main_queue = &main_queue;   // "::" means global variable
 
   auto err = pci::ScanAllBus();
-  printk("ScanAllBus: %s\n", err.Name());
+  Log(kDebug, "ScanAllBus: %s\n", err.Name());
   
   for (int i = 0; i < pci::num_device; i++) {
     const auto& dev = pci::devices[i];
     auto vendor_id  = pci::ReadVendorId(dev.bus, dev.device, dev.function);
     auto class_code = pci::ReadClassCode(dev.bus, dev.device, dev.function);
-    printk("%d.%d.%d: vend %04x, class %08x, head %02x\n",
+    Log(kDebug, "%d.%d.%d: vend %04x, class %08x, head %02x\n",
         dev.bus, dev.device, dev.function,
         vendor_id, class_code, dev.header_type);
   }
@@ -247,6 +256,8 @@ extern "C" void KernelMain(const FrameBufferConfig& frame_buffer_config,
 
   Log(kInfo, "xHC starting\n");
   xhc.Run();
+
+  ::xhc = &xhc;
 
   usb::HIDMouseDriver::default_observer = MouseObserver;
 
