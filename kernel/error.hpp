@@ -25,6 +25,7 @@ public:
     kInvalidPhase,
     kUnknownXHCISpeedID,
     kNoWaiter,
+    kNoPCIMSI,
     kLastOfCode,              // must be last identifier
   };
 
@@ -50,6 +51,7 @@ private:
     "kInvalidPhase",
     "kUnknownXHCISpeedID",
     "kNoWaiter",
+    "kNoPCIMSI",
   };
   static_assert(Error::Code::kLastOfCode == code_names_.size());
 

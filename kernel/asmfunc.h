@@ -12,4 +12,9 @@ extern "C" {
   //      access by CONFIG_ADDRESS and CONFIG_DATA register
   void IoOut32(uint16_t addr, uint32_t data);
   uint32_t IoIn32(uint16_t addr);
+
+  // Get code segment selector
+  uint16_t GetCS(void);
+  // register user-defined IDT
+  void LoadIDT(uint16_t limit, uint64_t offset);
 }
