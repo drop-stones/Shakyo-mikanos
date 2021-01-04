@@ -5,8 +5,12 @@ OBJS = main.o graphics.o mouse.o font.o hankaku.o newlib_support.o console.o \
        usb/xhci/port.o usb/xhci/device.o usb/xhci/devmgr.o usb/xhci/registers.o \
        usb/classdriver/base.o usb/classdriver/hid.o usb/classdriver/keyboard.o \
        usb/classdriver/mouse.o
-       #wallpaper_img.o wallpaper.o
+EX_OBJS = wallpaper_img.o wallpaper.o
 DEPENDS = $(join $(dir $(OBJS)), $(addprefix .,$(notdir $(OBJS:.o=.d))))
+
+WALLPAPER_IMG = pokemon-ball.jpg
+WALLPAPER_HEIGHT = 600
+WALLPAPER_WIDTH  = 800
 
 CPPFLAGS += -I.
 CFLAGS   += -O2 -Wall -g --target=x86_64-elf -ffreestanding -mno-red-zone
@@ -21,8 +25,8 @@ all: $(TARGET)
 clean:
 	rm -rf *.o *.bin
 
-kernel.elf: $(OBJS) Makefile
-	ld.lld $(LDFLAGS) -o kernel.elf $(OBJS) -lc -lc++
+kernel.elf: $(OBJS) Makefile $(EX_OBJS)
+	ld.lld $(LDFLAGS) -o kernel.elf $(OBJS) -lc -lc++ $(EX_OBJS)
 
 # $<: the first material
 %.o: %.cpp Makefile
@@ -40,8 +44,8 @@ hankaku.bin: hankaku.txt
 hankaku.o: hankaku.bin
 	objcopy -I binary -O elf64-x86-64 -B i386:x86-64 $< $@
 
-wallpaper_img.bin: pokemon-ball.jpg
-	../tools/makeDesktop.py -o $@ $<
+wallpaper_img.bin: $(WALLPAPER_IMG) ../tools/makeDesktop.py Makefile
+	../tools/makeDesktop.py -o $@ -height $(WALLPAPER_HEIGHT) -width $(WALLPAPER_WIDTH) $<
 
 wallpaper_img.o: wallpaper_img.bin
 	objcopy -I binary -O elf64-x86-64 -B i386:x86-64 $< $@

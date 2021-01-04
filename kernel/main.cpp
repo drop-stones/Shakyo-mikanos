@@ -24,7 +24,12 @@
 #include "segment.hpp"
 #include "paging.hpp"
 
-//#include "wallpaper.hpp"
+#define WALLPAPER_
+#ifdef WALLPAPER_
+#include "wallpaper.hpp"
+char wallpaper_buf[sizeof(WallPaper)];
+WallPaper* wallpaper;
+#endif
 
 const PixelColor kDesktopBGColor{20, 20, 20};
 const PixelColor kDesktopFGColor{255, 255, 255};
@@ -34,9 +39,6 @@ PixelWriter* pixel_writer;
 
 char console_buf[sizeof(Console)];
 Console* console;
-
-//char wallpaper_buf[sizeof(WallPaper)];
-//WallPaper* wallpaper;
 
 int printk(const char* format, ...) {
   va_list ap;
@@ -103,9 +105,6 @@ extern "C" void KernelMainNewStack(
   // copy to new stack
   FrameBufferConfig frame_buffer_config{frame_buffer_config_ref};
   MemoryMap memory_map{memory_map_ref};
-//extern "C" void KernelMain(
-//    const FrameBufferConfig& frame_buffer_config,
-//    const MemoryMap& memory_map) {
 
   switch (frame_buffer_config.pixel_format) {
   case kPixelRGBResv8BitPerColor:
@@ -122,15 +121,20 @@ extern "C" void KernelMainNewStack(
   const int kFrameWidth = frame_buffer_config.horizontal_resolution;
   const int kFrameHeight = frame_buffer_config.vertical_resolution;
 
+#ifdef WALLPAPER_
   // Back ground
-  //wallpaper = new(wallpaper_buf) WallPaper(
-  //  *pixel_writer, kFrameWidth, kFrameHeight - 50
-  //);
-  //wallpaper->WriteWallPaper();
+  wallpaper = new(wallpaper_buf) WallPaper(
+    *pixel_writer, kFrameWidth, kFrameHeight - 50
+  );
+  wallpaper->WriteWallPaper();
+#endif
+
+#ifndef WALLPAPER_
   FillRectangle(*pixel_writer,
               {0, 0},
               {kFrameWidth, kFrameHeight - 50},
               kDesktopBGColor);
+#endif
   // Dark foot ground
   FillRectangle(*pixel_writer,
                 {0, kFrameHeight - 50},
