@@ -26,8 +26,8 @@ all: $(TARGET)
 clean:
 	rm -rf *.o *.bin
 
-kernel.elf: $(OBJS) Makefile $(EX_OBJS)
-	ld.lld $(LDFLAGS) -o kernel.elf $(OBJS) -lc -lc++ $(EX_OBJS)
+kernel.elf: $(OBJS) $(EX_OBJS) Makefile
+	ld.lld $(LDFLAGS) -o kernel.elf $(OBJS) $(EX_OBJS) -lc -lc++ -lc++abi
 
 # $<: the first material
 %.o: %.cpp Makefile
