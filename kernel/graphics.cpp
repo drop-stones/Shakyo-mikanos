@@ -1,5 +1,12 @@
 #include "graphics.hpp"
 
+#define WALLPAPER_
+
+#ifdef WALLPAPER_
+#include <new>
+#include "wallpaper.hpp"
+#endif
+
 void RGBResv8BitPerColorPixelWriter::Write(int x, int y, const PixelColor& c) {
     auto p = PixelAt(x, y);
     p[0] = c.r;
@@ -33,4 +40,37 @@ void FillRectangle(PixelWriter& writer, const Vector2D<int>& pos,
       writer.Write(pos.x + dx, pos.y + dy, c);
     }
   }
+}
+
+void DrawDesktop(PixelWriter& writer) {
+  const auto width = writer.Width();
+  const auto height = writer.Height();
+  
+#ifdef WALLPAPER_
+  wallpaper = new(wallpaper_buf) WallPaper(
+    writer, width, height - 50
+  );
+  wallpaper->WriteWallPaper();
+#endif
+#ifndef WALLPAPER_
+  FillRectangle(writer,
+                {0, 0},
+                {width, height - 50},
+                kDesktopBGColor);
+#endif
+  // Dark foot ground
+  FillRectangle(writer,
+                {0, height - 50},
+                {width, 50},
+                {1, 8, 17});
+  // Gray left-under ground
+  FillRectangle(writer,
+                {0, height - 50},
+                {width, 50},
+                {80, 80, 80});
+  // Light-gray left-under ground
+  FillRectangle(writer,
+                {10, height - 40},
+                {30, 30},
+                {160, 160, 160});
 }

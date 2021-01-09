@@ -19,3 +19,6 @@ private:
   WallPaperPixel* firstPixel_;
   int wallpaperWidth_, wallpaperHeight_, wallpaperColor_;
 };
+
+extern char wallpaper_buf[sizeof(WallPaper)];
+extern WallPaper* wallpaper;
