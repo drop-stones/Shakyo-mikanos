@@ -7,7 +7,7 @@ OBJS = main.o graphics.o mouse.o font.o hankaku.o newlib_support.o console.o \
        usb/classdriver/base.o usb/classdriver/hid.o usb/classdriver/keyboard.o \
        usb/classdriver/mouse.o
 EX_OBJS = wallpaper_img.o wallpaper.o
-DEPENDS = $(join $(dir $(OBJS)), $(addprefix .,$(notdir $(OBJS:.o=.d))))
+DEPENDS = $(join $(dir $(OBJS)),$(addprefix .,$(notdir $(OBJS:.o=.d))))
 
 WALLPAPER_IMG = pokemon-ball.jpg
 WALLPAPER_HEIGHT = 600
@@ -24,17 +24,28 @@ all: $(TARGET)
 
 .PHONY: clean
 clean:
-	rm -rf *.o *.bin
+	rm -rf *.o *.bin .*.d
 
 kernel.elf: $(OBJS) $(EX_OBJS) Makefile
 	ld.lld $(LDFLAGS) -o kernel.elf $(OBJS) $(EX_OBJS) -lc -lc++ -lc++abi
+	#ld.lld $(LDFLAGS) -o kernel.elf $(OBJS) $(EX_OBJS) -lc -lc++ -lc++abi -lm
 
 # $<: the first material
 %.o: %.cpp Makefile
 	clang++ $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
+.%.d: %.cpp
+	clang++ $(CPPFLAGS) $(CXXFLAGS) -MM $< > $@
+	$(eval OBJ = $(<:.cpp=.o))
+	sed --in-place 's|$(notdir $(OBJ))|$(OBJ)|' $@
+
 %.o: %.c Makefile
 	clang $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+.%.d: %.c
+	clang $(CPPFLAGS) $(CFLAGS) -MM $< > $@
+	$(eval OBJ = $(<:.c=.o))
+	sed --in-place 's|$(notdir $(OBJ))|$(OBJ)|' $@
 
 %.o: %.asm Makefile
 	nasm -f elf64 -o $@ $<
@@ -45,8 +56,17 @@ hankaku.bin: hankaku.txt
 hankaku.o: hankaku.bin
 	objcopy -I binary -O elf64-x86-64 -B i386:x86-64 $< $@
 
+.%.d: %.bin
+	touch $@
+
 wallpaper_img.bin: $(WALLPAPER_IMG) ../tools/makeDesktop.py Makefile
 	../tools/makeDesktop.py -o $@ -height $(WALLPAPER_HEIGHT) -width $(WALLPAPER_WIDTH) $<
 
 wallpaper_img.o: wallpaper_img.bin
 	objcopy -I binary -O elf64-x86-64 -B i386:x86-64 $< $@
+
+.PHONY: depends
+depends:
+	$(MAKE) $(DEPENDS)
+
+-include $(DEPENDS)
