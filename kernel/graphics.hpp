@@ -63,6 +63,32 @@ struct Vector2D {
     y += rhs.y;
     return *this;
   }
+
+  template <typename U>
+  Vector2D<T> operator +(const Vector2D<U>& rhs) const {
+    auto tmp = *this;
+    tmp += rhs;
+    return tmp;
+  }
+
+  template <typename U>
+  Vector2D<T>& operator -=(const Vector2D<U>& rhs) {
+    x -= rhs.x;
+    y -= rhs.y;
+    return *this;
+  }
+
+  template <typename U>
+  Vector2D<T> operator -(const Vector2D<U>& rhs) const {
+    auto tmp = *this;
+    tmp -= rhs;
+    return tmp;
+  }
+
+  //template <typename U>
+  //bool operator ==(const Vector2D<U>& rhs) const {
+  //  return (x == rhs.x) && (y == rhs.y);
+  //}
 };
 
 void DrawRectangle(PixelWriter& writer, const Vector2D<int>& pos,

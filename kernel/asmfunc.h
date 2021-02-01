@@ -25,4 +25,11 @@ extern "C" {
   void SetDSAll(uint16_t value);
   // setting cr3 register
   void SetCR3(uint64_t value);
+
+  // BIOS Shutdown (https://wiki.osdev.org/Shutdown#Emulator-specific_methods)
+  void ShutdownBIOS();
+  // APM Shutdown (https://stackoverflow.com/questions/678458/shutdown-the-computer-using-assembly)
+  void ShutdownAPM();
+  // Shutdown QEMU
+  void ShutdownQEMU();
 }

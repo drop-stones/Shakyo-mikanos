@@ -26,6 +26,8 @@
 #include "memory_manager.hpp"
 #include "window.hpp"
 #include "layer.hpp"
+#include "menu.hpp"
+//#include <io.h>
 
 #define WALLPAPER_
 
@@ -34,6 +36,9 @@
 char wallpaper_buf[sizeof(WallPaper)];
 WallPaper* wallpaper;
 #endif
+
+//char menu_buf[sizeof(Menu)];
+//Menu* menu;
 
 char pixel_writer_buf[sizeof(RGBResv8BitPerColorPixelWriter)];
 PixelWriter* pixel_writer;
@@ -58,9 +63,53 @@ char memory_manager_buf[sizeof(BitmapMemoryManager)];
 BitmapMemoryManager* memory_manager;
 
 unsigned int mouse_layer_id;
+Vector2D<int> mouse_position;
 
-void MouseObserver(int8_t displacement_x, int8_t displacement_y) {
-  layer_manager->MoveRelative(mouse_layer_id, {displacement_x, displacement_y});
+unsigned int menu_layer_id;
+
+void MouseObserver(uint8_t buttons, int8_t displacement_x, int8_t displacement_y) {
+  static unsigned int mouse_drag_layer_id = 0;
+  static uint8_t previous_buttons = 0;
+
+  const auto oldpos = mouse_position;
+  auto newpos = mouse_position + Vector2D<int>{displacement_x, displacement_y};
+  // TODO: mouse must in desktop
+  mouse_position = newpos;
+
+  const auto posdiff = mouse_position - oldpos;
+
+  //layer_manager->MoveRelative(mouse_layer_id, {displacement_x, displacement_y});
+  layer_manager->Move(mouse_layer_id, mouse_position);
+
+  const bool previous_left_pressed = (previous_buttons & 0x01);
+  const bool left_pressed = (buttons & 0x01);
+  static bool menu_open = false;
+  if (!previous_left_pressed && left_pressed) {
+    // in menu-button range
+    const Vector2D<int> menu_button_pos{10, pixel_writer->Height() - 40};
+    const Vector2D<int> menu_button_size{30, 30};
+    if (menu_button_pos.x <= mouse_position.x && mouse_position.x <= menu_button_pos.x + menu_button_size.x
+     && menu_button_pos.y <= mouse_position.y && mouse_position.y <= menu_button_pos.y + menu_button_size.y) {
+       Log(kInfo, "menu_button pushed\n");
+       if (menu_open) {
+         layer_manager->Hide(menu_layer_id);
+         menu_open = false;
+       } else {
+         layer_manager->UpDown(menu_layer_id, 1);
+         menu_open = true;
+       }
+     }
+
+     // in power_button range
+     const Vector2D<int> power_button_pos{0, pixel_writer->Height() - 50 - kMenuHeight};
+     const Vector2D<int> power_button_size{kMenuWidth, kMenuHeight};
+     if (menu_open
+      && power_button_pos.x <= mouse_position.x && mouse_position.x <= power_button_pos.x + power_button_size.x
+      && power_button_pos.y <= mouse_position.y && mouse_position.y <= power_button_pos.y + power_button_size.y) {
+        Log(kError, "power_button pushed\n");
+        ShutdownBIOS();
+      }
+  }
   layer_manager->Draw();
 }
 
@@ -283,6 +332,12 @@ extern "C" void KernelMainNewStack(
   mouse_window->SetTransparentColor(kMouseTransparentColor);
   DrawMouseCursor(mouse_window->Writer(), {0, 0});
 
+  // menu setting
+  auto menu_window = std::make_shared<Window>(
+    kMenuWidth, kMenuHeight);
+  DrawMenu(menu_window->Writer(), {0, 0});
+  //DrawMenu(menu_window->Writer(), {0, kFrameHeight - 100 - kMenuHeight});
+
   layer_manager = new LayerManager;
   layer_manager->SetWriter(pixel_writer);
 
@@ -294,9 +349,14 @@ extern "C" void KernelMainNewStack(
     .SetWindow(mouse_window)
     .Move({200, 200})
     .ID();
-  
+  menu_layer_id = layer_manager->NewLayer()
+    .SetWindow(menu_window)
+    .Move({0, kFrameHeight - 50 - kMenuHeight})
+    .ID();
+
   layer_manager->UpDown(bglayer_id, 0);
   layer_manager->UpDown(mouse_layer_id, 1);
+  layer_manager->Hide(menu_layer_id);
   layer_manager->Draw();
 
   while (true) {

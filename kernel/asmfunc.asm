@@ -76,6 +76,47 @@ SetCR3:
     mov cr3, rdi
     ret
 
+global ShutdownBIOS ; void ShutdownBIOS();
+ShutdownBIOS:
+    mov ax, 0x1000
+    mov ax, ss
+    mov sp, 0xf000
+    mov ax, 0x5307
+    mov bx, 0x0001
+    mov cx, 0x0003
+    int 0x15
+    ret
+
+global ShutdownAPM  ; void ShutdownAPM();
+ShutdownAPM:
+    ; connect to APM API
+    mov ax, 0x5301
+    xor bx, bx
+    int 0x15
+    ; try to set APM version
+    mov ax, 0x530e
+    xor bx, bx
+    mov cx, 0x102
+    int 0x15
+    ; turn off the system
+    mov ax, 0x5307
+    mov bx, 0x0001
+    mov cx, 0x0003
+    int 0x15
+    ret
+
+global ShutdownQEMU ; void ShutdownQEMU();
+ShutdownQEMU:
+    xor eax, eax
+    mov edx, 0x4004
+    mov ax, 0
+    or ax, 0b1000000000000
+    out dx, ax
+    ;mov dx, 0x604
+    ;mov eax, 0x2000
+    ;out dx, eax
+    ;ret
+
 ; set_main_stack
 extern kernel_main_stack
 extern KernelMainNewStack

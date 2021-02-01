@@ -6,7 +6,7 @@ OBJS = main.o graphics.o mouse.o font.o hankaku.o newlib_support.o console.o \
        usb/xhci/port.o usb/xhci/device.o usb/xhci/devmgr.o usb/xhci/registers.o \
        usb/classdriver/base.o usb/classdriver/hid.o usb/classdriver/keyboard.o \
        usb/classdriver/mouse.o
-EX_OBJS = wallpaper_img.o wallpaper.o
+EX_OBJS = wallpaper_img.o wallpaper.o menu.o power_button.o
 DEPENDS = $(join $(dir $(OBJS)),$(addprefix .,$(notdir $(OBJS:.o=.d))))
 
 WALLPAPER_IMG = pokemon-ball.jpg
@@ -63,6 +63,12 @@ wallpaper_img.bin: $(WALLPAPER_IMG) ../tools/makeDesktop.py Makefile
 	../tools/makeDesktop.py -o $@ -height $(WALLPAPER_HEIGHT) -width $(WALLPAPER_WIDTH) $<
 
 wallpaper_img.o: wallpaper_img.bin
+	objcopy -I binary -O elf64-x86-64 -B i386:x86-64 $< $@
+
+power_button.bin: power_button.jpg ../tools/makeDesktop.py Makefile
+	../tools/makeDesktop.py -o $@ -height 50 -width 50 $<
+
+power_button.o: power_button.bin
 	objcopy -I binary -O elf64-x86-64 -B i386:x86-64 $< $@
 
 .PHONY: depends
